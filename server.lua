@@ -29,25 +29,6 @@ function splitString(str, sep)
   return t
 end
 
-
-RegisterServerEvent('taxi:update')
-AddEventHandler('taxi:update', function(veh)
-  local user_id = vRP.getUserId({source})
-  local source = vRP.getUserSource({user_id})
-
-  local vehicle = veh
-  TriggerClientEvent("taxi:updatefare", source, veh)
-end)
-
-RegisterServerEvent('taxi:syncmeter')
-AddEventHandler('taxi:syncmeter', function(veh)
-  local user_id = vRP.getUserId({source})
-  local source = vRP.getUserSource({user_id})
-  local vehicle = veh
-  TriggerClientEvent("taxi:updatefare", source, veh)
-end)
-
-
 if testMode then
   AddEventHandler('chatMessage', function(source, n, message)
     local args = stringsplit(message, " ")
@@ -68,5 +49,64 @@ if testMode then
     end
   end)
 end
+AddEventHandler('chatMessage', function(from,name,message)
+  if(string.sub(message,1,1) == "/") then
 
-function stringsplit(inputstr, sep) if sep == nil then sep = "%s" end local t={} ; i=1 for str in string.gmatch(inputstr, "([^"..sep.."]+)") do t[i] = str i = i + 1 end return t end
+    local args = splitString(message)
+    local cmd = args[1]
+
+    if(cmd == "/taxifare")then
+      CancelEvent()
+
+      local subCmd = string.lower(tostring(args[2]))
+      if(subCmd == nil)then
+        TriggerClientEvent('chatMessage', from, "Taxi Meter -- Settings", {200,0,0} , "Usage: /taxifare help")
+        return
+      end
+      if subCmd == "help" then
+        TriggerClientEvent('chatMessage', from, "Taxi Meter -- Help", {200,0,0} , "Possible actions: initial, mile, minute, show. Initial is the base starting fare (default: $50). Mile is the rate per mile driven (default: $35). Minute is the rate per minute while the meter is on (default: $100). Show will display your current settings.")
+        return
+      end
+      if subCmd == "show" then
+        TriggerClientEvent("vRP_taxi:user_settings", from, subCmd, nil)
+        return
+      end
+      if args[3] ~= nil then
+        value = parseDouble(args[3])
+        if subCmd == "initial" then
+          TriggerClientEvent("vRP_taxi:user_settings", from, subCmd, value)
+          return
+        end
+        if subCmd == "mile" then
+          TriggerClientEvent("vRP_taxi:user_settings", from, subCmd, value)
+          return
+        end
+        if subCmd == "minute" then
+          TriggerClientEvent("vRP_taxi:user_settings", from, subCmd, value)
+          return
+        end
+      else
+        TriggerClientEvent('chatMessage', from, "Taxi Meter -- Settings", {200,0,0} , "Usage: /taxifare help")
+        return
+      end
+    elseif cmd == "/taxihire" then
+      TriggerClientEvent('taxi:toggleHire',from)
+    elseif cmd == "/taxireset" then
+      TriggerClientEvent('taxi:resetMeter',from)
+    elseif cmd == "/taxidisplay" then
+      TriggerClientEvent('taxi:toggleDisplay',from)
+    end
+  end
+end)
+
+function stringsplit(inputstr, sep)
+  if sep == nil then
+    sep = "%s"
+  end
+  local t={}
+  i=1
+  for str in string.gmatch(inputstr, "([^"..sep.."]+)") do
+    t[i] = str i = i + 1
+  end
+  return t
+end

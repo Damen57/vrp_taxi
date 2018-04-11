@@ -6,7 +6,6 @@ local initialFare = 50.0 -- the cost to start a fare
 
 local testMode = true -- enables spawn car command
 
-
 DecorRegister("fares", 1)
 DecorRegister("miles", 1)
 DecorRegister("meteractive", 2)
@@ -15,7 +14,6 @@ DecorRegister("meteractive", 2)
 local inTaxi = false
 local meterOpen = false
 local meterActive = false
-
 
 -- Open Gui and Focus NUI
 function openGui()
@@ -36,8 +34,7 @@ Citizen.CreateThread(function()
     if IsInTaxi() and GetPedInVehicleSeat(veh, -1) ~= ped then
       local ped = GetPlayerPed(-1)
       local veh = GetVehiclePedIsIn(ped, false)
-      TriggerServerEvent("taxi:update", veh)
-      TriggerServerEvent("taxi:syncmeter", veh)
+      TriggerEvent('taxi:updatefare', veh)
       openGui()
       meterOpen = true
     end
@@ -46,10 +43,10 @@ Citizen.CreateThread(function()
       local _miles = DecorGetFloat(veh, "miles")
       DecorSetFloat(veh, "fares", _fare + fareCost)
       DecorSetFloat(veh, "miles", _miles + round(GetEntitySpeed(veh) * 0.000621371, 5))
-      TriggerServerEvent("taxi:syncmeter", veh)
+      TriggerEvent('taxi:updatefare', veh)
     end
     if IsInTaxi() and not GetPedInVehicleSeat(veh, -1) == ped then
-        TriggerServerEvent("taxi:syncmeter", veh)
+      TriggerEvent('taxi:updatefare', veh)
     end
   end
 end)
@@ -57,61 +54,30 @@ end)
 -- If GUI setting turned on, listen for INPUT_PICKUP keypress
 if enableTaxiGui then
   Citizen.CreateThread(function()
-    TriggerEvent("pNotify:SetQueueMax", "taxi", 1)
     while true do
       Citizen.Wait(0)
       if(IsInTaxi()) then
         if (inTaxi == false) then
-          TriggerEvent("pNotify:SendNotification", {
-            text = "Press E to toggle Taxi Meter",
-            type = "alert",
-            theme = "sunset",
-            timeout = math.random(1000, 3000),
-            progressBar = false,
-            layout = "centerLeft",
-            queue = "taxi"
-        })
+          msg = "Press HOME to toggle Taxi Meter"
+          TriggerEvent("pNotify:SendNotification", {text = msg , type = "success", layout = "centerLeft", queue = "global", theme = "gta", timeout = 5000})
         end
         inTaxi = true
         local ped = GetPlayerPed(-1)
         local veh = GetVehiclePedIsIn(ped, false)
         if(IsInTaxi() and GetPedInVehicleSeat(veh, -1) == ped) then
-          if IsControlJustPressed(1, 51)  then -- IF INPUT_PICKUP Is pressed
-              if meterOpen then
-                closeGui()
-                meterOpen = false
-              else
-                local ped = GetPlayerPed(-1)
-                local veh = GetVehiclePedIsIn(ped, false)
-                local _fare = DecorGetFloat(veh, "fares")
-                if _fare < initialFare then
-                  DecorSetFloat(veh, "fares", initialFare)
-                end
-                TriggerServerEvent("taxi:update", veh)
-                TriggerServerEvent("taxi:syncmeter", veh)
-                openGui()
-                meterOpen = true
-              end
-            end
-            if IsControlJustPressed(1, 246)  then -- IF INPUT_PICKUP Is pressed
-                if meterActive then
-                    SendNUIMessage({meterActive = false})
-                    meterActive = false
-                    DecorSetInt(veh, "meteractive", false)
-                else
-                    SendNUIMessage({meterActive = true})
-                    meterActive = true
-                    DecorSetInt(veh, "meteractive", true)
-                end
-              end
-            end
-            if IsControlJustPressed(1, 7)  then -- IF INPUT_PICKUP Is pressed
-              local _fare = DecorGetFloat(veh, "fares")
-              local _miles = DecorGetFloat(veh, "miles")
-              DecorSetFloat(veh, "fares", initialFare)
-              DecorSetFloat(veh, "miles", 0.0)
-              TriggerServerEvent("taxi:syncmeter", veh)
-            end
+          if IsControlJustReleased(0, 213)  then -- HOME
+            TriggerEvent('taxi:toggleDisplay')
+            Citizen.Wait(100)
+          end
+          if IsControlJustReleased(0, 311)  then -- K
+            TriggerEvent('taxi:toggleHire')
+            Citizen.Wait(100)
+          end
+          if IsControlJustReleased(0,7) then -- L
+            TriggerEvent('taxi:resetMeter')
+            Citizen.Wait(100)
+          end
+        end
       else
         if(meterOpen) then
           closeGui()
@@ -133,7 +99,57 @@ RegisterNUICallback('close', function(data, cb)
   cb('ok')
 end)
 
+RegisterNetEvent('taxi:toggleDisplay')
+AddEventHandler('taxi:toggleDisplay', function()
+  local ped = GetPlayerPed(-1)
+  local veh = GetVehiclePedIsIn(ped, false)
+  if(IsInTaxi() and GetPedInVehicleSeat(veh, -1) == ped) then
+    if meterOpen then
+      closeGui()
+      meterOpen = false
+    else
+      local _fare = DecorGetFloat(veh, "fares")
+      if _fare < initialFare then
+        DecorSetFloat(veh, "fares", initialFare)
+      end
+      TriggerEvent('taxi:updatefare', veh)
+      openGui()
+      meterOpen = true
+    end
+  end
+end)
 
+RegisterNetEvent('taxi:toggleHire')
+AddEventHandler('taxi:toggleHire', function()
+  local ped = GetPlayerPed(-1)
+  local veh = GetVehiclePedIsIn(ped, false)
+  if(IsInTaxi() and GetPedInVehicleSeat(veh, -1) == ped) then
+    if meterActive then
+      SendNUIMessage({meterActive = false})
+      meterActive = false
+      DecorSetBool(veh, "meteractive", false)
+      Citizen.Trace("Trigger OFF")
+    else
+      SendNUIMessage({meterActive = true})
+      meterActive = true
+      DecorSetBool(veh, "meteractive", true)
+      Citizen.Trace("Trigger ON")
+    end
+  end
+end)
+
+RegisterNetEvent('taxi:resetMeter')
+AddEventHandler('taxi:resetMeter', function()
+  local ped = GetPlayerPed(-1)
+  local veh = GetVehiclePedIsIn(ped, false)
+  if(IsInTaxi() and GetPedInVehicleSeat(veh, -1) == ped) then
+    local _fare = DecorGetFloat(veh, "fares")
+    local _miles = DecorGetFloat(veh, "miles")
+    DecorSetFloat(veh, "fares", initialFare)
+    DecorSetFloat(veh, "miles", 0.0)
+    TriggerEvent('taxi:updatefare', veh)
+  end
+end)
 
 -- Check if player is in a vehicle
 function IsInVehicle()
@@ -159,7 +175,6 @@ function IsInTaxi()
   end
 end
 
-
 -- Check if player is in a Taxi
 function ReturnVehicle()
   local ped = GetPlayerPed(-1)
@@ -181,9 +196,6 @@ function IsNearPlayer(player)
   end
 end
 
-
-
-
 -- Send NUI message to update
 RegisterNetEvent('taxi:updatefare')
 AddEventHandler('taxi:updatefare', function(veh)
@@ -202,9 +214,34 @@ AddEventHandler('taxi:updatefare', function(veh)
 	})
 end)
 
+RegisterNetEvent('vRP_taxi:user_settings')
+AddEventHandler('vRP_taxi:user_settings', function(action, value)
+  if action ~= nil and IsInVehicle and IsInTaxi() then
+    local ped = GetPlayerPed(-1)
+    local veh = GetVehiclePedIsIn(ped, false)
+    if GetPedInVehicleSeat(veh, -1) == ped then
+      if action == "show" then
+        msg = "<b>Current meter values</b></b><br /><b>Initial</b> = $"..initialFare.."<br /><b>Fare per mile</b> = $"..costPerMile.."<br /><b>Fare per minute</b> = $"..fareCost*60
+      elseif action == "initial" then
+        initialFare = value*1.0
+        DecorSetFloat(veh, "fares", initialFare)
+        TriggerEvent('taxi:updatefare', veh)
+        msg = "<b>Initial fare set to </b>$"..value
+      elseif action == "mile" then
+        costPerMile = value
+        msg = "<b>Fare per mile set to </b>$"..value
+      elseif action == "minute" then
+        fareCost = value/60
+        msg = "<b>Fare per minute set to </b>$"..value
+      end
+      if msg ~= nil then
+        TriggerEvent("pNotify:SendNotification", {text = msg , type = "success", layout = "centerLeft", queue = "global", theme = "gta", timeout = 5000})
+      end
+    end
+  end
+end)
 
 if testMode then
-
   RegisterNetEvent('VehicleSpawn')
   AddEventHandler('VehicleSpawn', function(vehicleName)
     local myPed = GetPlayerPed(-1)
