@@ -1,7 +1,7 @@
 -- Settings
 local enableTaxiGui = true -- Enables the GUI (Default: true)
 local fareCost = 1.66 --(1.66 = $100 per minute) Cost per second
-local costPerMile = 35
+local costPerMile = 35.0
 local initialFare = 50.0 -- the cost to start a fare
 
 local testMode = true -- enables spawn car command
@@ -9,6 +9,9 @@ local testMode = true -- enables spawn car command
 DecorRegister("fares", 1)
 DecorRegister("miles", 1)
 DecorRegister("meteractive", 2)
+DecorRegister("initialFare", 1)
+DecorRegister("costPerMile", 1)
+DecorRegister("fareCost", 1)
 
 -- NUI Variables
 local inTaxi = false
@@ -41,7 +44,7 @@ Citizen.CreateThread(function()
     if meterActive and GetPedInVehicleSeat(veh, -1) == ped then
       local _fare = DecorGetFloat(veh, "fares")
       local _miles = DecorGetFloat(veh, "miles")
-      DecorSetFloat(veh, "fares", _fare + fareCost)
+      DecorSetFloat(veh, "fares", _fare + DecorGetFloat(veh, "fareCost"))
       DecorSetFloat(veh, "miles", _miles + round(GetEntitySpeed(veh) * 0.000621371, 5))
       TriggerEvent('taxi:updatefare', veh)
     end
@@ -145,7 +148,10 @@ AddEventHandler('taxi:resetMeter', function()
   if(IsInTaxi() and GetPedInVehicleSeat(veh, -1) == ped) then
     local _fare = DecorGetFloat(veh, "fares")
     local _miles = DecorGetFloat(veh, "miles")
-    DecorSetFloat(veh, "fares", initialFare)
+    DecorSetFloat(veh, "initialFare", initialFare)
+    DecorSetFloat(veh, "costPerMile", costPerMile)
+    DecorSetFloat(veh, "fareCost", fareCost)
+    DecorSetFloat(veh, "fares", DecorGetFloat(veh, "initialFare"))
     DecorSetFloat(veh, "miles", 0.0)
     TriggerEvent('taxi:updatefare', veh)
   end
@@ -203,7 +209,7 @@ AddEventHandler('taxi:updatefare', function(veh)
   local playerName = GetPlayerName(id)
   local _fare = DecorGetFloat(veh, "fares")
   local _miles = DecorGetFloat(veh, "miles")
-  local farecost = _fare + (_miles * costPerMile)
+  local farecost = _fare + (_miles * DecorGetFloat(veh, "costPerMile"))
 
 
 	SendNUIMessage({
@@ -227,12 +233,15 @@ AddEventHandler('vRP_taxi:user_settings', function(action, value)
         DecorSetFloat(veh, "fares", initialFare)
         TriggerEvent('taxi:updatefare', veh)
         msg = "<b>Initial fare set to </b>$"..value
+        DecorSetFloat(veh, "initialFare", value*1.0)
       elseif action == "mile" then
         costPerMile = value
         msg = "<b>Fare per mile set to </b>$"..value
+        DecorSetFloat(veh, "costPerMile", value)
       elseif action == "minute" then
         fareCost = value/60
         msg = "<b>Fare per minute set to </b>$"..value
+        DecorSetFloat(veh, "fareCost", value/60)
       end
       if msg ~= nil then
         TriggerEvent("pNotify:SendNotification", {text = msg , type = "success", layout = "centerLeft", queue = "global", theme = "gta", timeout = 5000})

@@ -29,7 +29,7 @@ function splitString(str, sep)
   return t
 end
 
-if testMode then
+--if testMode then
   AddEventHandler('chatMessage', function(source, n, message)
     local args = stringsplit(message, " ")
     if (args[1] == "/spawn") then
@@ -48,7 +48,7 @@ if testMode then
       end
     end
   end)
-end
+--end
 AddEventHandler('chatMessage', function(from,name,message)
   if(string.sub(message,1,1) == "/") then
 
