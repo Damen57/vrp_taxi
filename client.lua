@@ -44,7 +44,13 @@ Citizen.CreateThread(function()
     if meterActive and GetPedInVehicleSeat(veh, -1) == ped then
       local _fare = DecorGetFloat(veh, "fares")
       local _miles = DecorGetFloat(veh, "miles")
-      DecorSetFloat(veh, "fares", _fare + DecorGetFloat(veh, "fareCost"))
+      local _fareCost = DecorGetFloat(veh, "fareCost")
+
+      if _fareCost ~= 0 then
+        DecorSetFloat(veh, "fares", _fare + _fareCost)
+      else
+        DecorSetFloat(veh, "fares", _fare + fareCost)
+      end
       DecorSetFloat(veh, "miles", _miles + round(GetEntitySpeed(veh) * 0.000621371, 5))
       TriggerEvent('taxi:updatefare', veh)
     end
@@ -222,7 +228,7 @@ end)
 
 RegisterNetEvent('vRP_taxi:user_settings')
 AddEventHandler('vRP_taxi:user_settings', function(action, value)
-  if action ~= nil and IsInVehicle and IsInTaxi() then
+  if action ~= nil and IsInTaxi() then
     local ped = GetPlayerPed(-1)
     local veh = GetVehiclePedIsIn(ped, false)
     if GetPedInVehicleSeat(veh, -1) == ped then
